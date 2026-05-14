@@ -21,31 +21,36 @@ export default function AdminPage() {
     supabaseRef.current = createClient();
 
     const getUser = async () => {
-      const supabase = supabaseRef.current;
-      if (!supabase) return;
+      try {
+        const supabase = supabaseRef.current;
+        if (!supabase) return;
 
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser();
+        const {
+          data: { user: authUser },
+        } = await supabase.auth.getUser();
 
-      if (!authUser) {
-        router.push('/login');
-        return;
+        if (!authUser) {
+          router.push('/login');
+          return;
+        }
+
+        const { data: userData, error } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', authUser.id)
+          .single();
+
+        if (error || !userData || userData.role !== 'admin') {
+          router.push('/dashboard');
+          return;
+        }
+
+        setUser(userData);
+        await fetchSubscriptions();
+      } catch (err) {
+        console.error('Error fetching user:', err);
+        setLoading(false);
       }
-
-      const { data: userData } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', authUser.id)
-        .single();
-
-      if (!userData || userData.role !== 'admin') {
-        router.push('/dashboard');
-        return;
-      }
-
-      setUser(userData);
-      fetchSubscriptions();
     };
 
     getUser();

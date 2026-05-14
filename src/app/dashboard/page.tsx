@@ -37,27 +37,35 @@ export default function DashboardPage() {
     supabaseRef.current = createClient();
 
     const getUser = async () => {
-      const supabase = supabaseRef.current;
-      if (!supabase) return;
+      try {
+        const supabase = supabaseRef.current;
+        if (!supabase) return;
 
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser();
+        const {
+          data: { user: authUser },
+        } = await supabase.auth.getUser();
 
-      if (!authUser) {
-        router.push('/login');
-        return;
-      }
+        if (!authUser) {
+          router.push('/login');
+          return;
+        }
 
-      const { data: userData } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', authUser.id)
-        .single();
+        const { data: userData, error } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', authUser.id)
+          .single();
 
-      if (userData) {
-        setUser(userData);
-        fetchSubscriptions(authUser.id);
+        if (userData) {
+          setUser(userData);
+          await fetchSubscriptions(authUser.id);
+        } else {
+          console.error('User data not found in public.users table', error);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Error in getUser:', err);
+        setLoading(false);
       }
     };
 

@@ -32,18 +32,24 @@ ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own profile" ON users
   FOR SELECT USING (auth.uid() = id);
 
+-- Create function to check if user is admin safely (avoiding recursion)
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.users
+    WHERE id = auth.uid() AND role = 'admin'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- Users can only update their own profile
 CREATE POLICY "Users can update own profile" ON users
   FOR UPDATE USING (auth.uid() = id);
 
 -- Admin can view all user profiles
 CREATE POLICY "Admin can view all profiles" ON users
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id = auth.uid() AND users.role = 'admin'
-    )
-  );
+  FOR SELECT USING (public.is_admin());
 
 -- Subscriptions table policies
 ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
@@ -58,21 +64,11 @@ CREATE POLICY "Users can create subscriptions" ON subscriptions
 
 -- Admin can view all subscriptions
 CREATE POLICY "Admin can view all subscriptions" ON subscriptions
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id = auth.uid() AND users.role = 'admin'
-    )
-  );
+  FOR SELECT USING (public.is_admin());
 
 -- Admin can update any subscription
 CREATE POLICY "Admin can update subscriptions" ON subscriptions
-  FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id = auth.uid() AND users.role = 'admin'
-    )
-  );
+  FOR UPDATE USING (public.is_admin());
 
 -- Create function to automatically create user profile on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
