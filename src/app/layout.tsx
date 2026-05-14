@@ -2,7 +2,7 @@ import { type Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Spotify Charge Manager',
+  title: 'Spotify do Gabriel',
   description: 'Sistema programado por Gabriel Trajano',
 };
 
