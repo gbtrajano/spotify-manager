@@ -55,15 +55,16 @@ export default function AdminPage() {
     const supabase = supabaseRef.current;
     if (!supabase) return;
 
-    // Buscar订阅 e usuários separadamente para garantir que funcione
+    // Buscar subscriptions
     const { data: subsData } = await supabase
       .from('subscriptions')
       .select('*')
       .order('created_at', { ascending: false });
 
     if (subsData && subsData.length > 0) {
-      // Buscar todos os usuários de uma vez
       const userIds = [...new Set(subsData.map(s => s.user_id))];
+
+      // Buscar usuários na tabela users
       const { data: usersData } = await supabase
         .from('users')
         .select('*')
@@ -71,11 +72,35 @@ export default function AdminPage() {
 
       const usersMap = new Map(usersData?.map(u => [u.id, u]) || []);
 
-      // Associar usuários às assinaturas
-      const subsWithUsers = subsData.map(sub => ({
-        ...sub,
-        user: usersMap.get(sub.user_id) || null
-      }));
+      // Para usuários que não estão na tabela users, buscar do auth
+      const missingUserIds = userIds.filter(id => !usersMap.has(id));
+      let authUsersMap = new Map();
+
+      if (missingUserIds.length > 0) {
+        // Buscar diretamente dos dados de auth (via API)
+        for (const userId of missingUserIds) {
+          const { data: userData } = await supabase.auth.admin.getUserById(userId);
+          if (userData?.user) {
+            authUsersMap.set(userId, {
+              id: userData.user.id,
+              email: userData.user.email,
+              name: userData.user.email?.split('@')[0] || 'Usuario',
+              role: 'user',
+              created_at: userData.user.created_at
+            });
+          }
+        }
+      }
+
+      // Combinar os dados
+      const subsWithUsers = subsData.map(sub => {
+        const userFromTable = usersMap.get(sub.user_id);
+        const userFromAuth = authUsersMap.get(sub.user_id);
+        return {
+          ...sub,
+          user: userFromTable || userFromAuth || null
+        };
+      });
 
       setSubscriptions(subsWithUsers);
     }
