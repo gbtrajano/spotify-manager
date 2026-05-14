@@ -138,7 +138,7 @@ export default function DashboardPage() {
     }
   };
 
-  const lastSubscription = subscriptions.find(s => s.status === 'pending');
+  const lastSubscription = subscriptions.find(s => s.status === 'pending') || subscriptions[0];
 
   const handleLogout = async () => {
     const supabase = supabaseRef.current;
