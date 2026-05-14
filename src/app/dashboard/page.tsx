@@ -12,7 +12,9 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [showQRCode, setShowQRCode] = useState(false);
+  const [pixKeyCopied, setPixKeyCopied] = useState(false);
   const router = useRouter();
+  const PIX_KEY = 'conversarcomgabriel@gmail.com';
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
 
   const fetchSubscriptions = useCallback(async (userId: string) => {
@@ -85,6 +87,23 @@ export default function DashboardPage() {
       setShowQRCode(true);
     }
     setCreating(false);
+  };
+
+  const copyPixKey = async () => {
+    try {
+      await navigator.clipboard.writeText(PIX_KEY);
+      setPixKeyCopied(true);
+      setTimeout(() => setPixKeyCopied(false), 2000);
+    } catch {
+      const textArea = document.createElement('textarea');
+      textArea.value = PIX_KEY;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setPixKeyCopied(true);
+      setTimeout(() => setPixKeyCopied(false), 2000);
+    }
   };
 
   const formatDate = (date: string) => {
@@ -174,6 +193,12 @@ export default function DashboardPage() {
                 <p className="text-sm text-[#b3b3b3]">
                   Após o pagamento, aguarde a confirmação. Você será notificado quando o pagamento for confirmado.
                 </p>
+                <button
+                  onClick={copyPixKey}
+                  className="mt-3 px-4 py-2 bg-[#181818] border border-[#282828] rounded-full text-sm text-[#1DB954] hover:bg-[#1a1a24] transition-colors"
+                >
+                  {pixKeyCopied ? 'Copiado!' : 'Copiar chave PIX'}
+                </button>
               </div>
             </div>
             <button
