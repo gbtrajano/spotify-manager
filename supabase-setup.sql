@@ -36,6 +36,15 @@ CREATE POLICY "Users can view own profile" ON users
 CREATE POLICY "Users can update own profile" ON users
   FOR UPDATE USING (auth.uid() = id);
 
+-- Admin can view all user profiles
+CREATE POLICY "Admin can view all profiles" ON users
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM users
+      WHERE users.id = auth.uid() AND users.role = 'admin'
+    )
+  );
+
 -- Subscriptions table policies
 ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
 

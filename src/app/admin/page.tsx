@@ -64,7 +64,7 @@ export default function AdminPage() {
     if (subsData && subsData.length > 0) {
       const userIds = [...new Set(subsData.map(s => s.user_id))];
 
-      // Buscar usuários na tabela users
+      // Buscar usuários na tabela users (agora acessível ao admin via RLS)
       const { data: usersData } = await supabase
         .from('users')
         .select('*')
@@ -72,35 +72,11 @@ export default function AdminPage() {
 
       const usersMap = new Map(usersData?.map(u => [u.id, u]) || []);
 
-      // Para usuários que não estão na tabela users, buscar do auth
-      const missingUserIds = userIds.filter(id => !usersMap.has(id));
-      let authUsersMap = new Map();
-
-      if (missingUserIds.length > 0) {
-        // Buscar diretamente dos dados de auth (via API)
-        for (const userId of missingUserIds) {
-          const { data: userData } = await supabase.auth.admin.getUserById(userId);
-          if (userData?.user) {
-            authUsersMap.set(userId, {
-              id: userData.user.id,
-              email: userData.user.email,
-              name: userData.user.email?.split('@')[0] || 'Usuario',
-              role: 'user',
-              created_at: userData.user.created_at
-            });
-          }
-        }
-      }
-
       // Combinar os dados
-      const subsWithUsers = subsData.map(sub => {
-        const userFromTable = usersMap.get(sub.user_id);
-        const userFromAuth = authUsersMap.get(sub.user_id);
-        return {
-          ...sub,
-          user: userFromTable || userFromAuth || null
-        };
-      });
+      const subsWithUsers = subsData.map(sub => ({
+        ...sub,
+        user: usersMap.get(sub.user_id) || null
+      }));
 
       setSubscriptions(subsWithUsers);
     }
@@ -268,8 +244,8 @@ export default function AdminPage() {
                 <tbody>
                   {filteredSubscriptions.map((sub) => (
                     <tr key={sub.id} className="border-b border-[#282828] hover:bg-[#1a1a24] transition-colors">
-                      <td className="py-3 px-4 font-medium">{sub.user?.name || '-'}</td>
-                      <td className="py-3 px-4 text-[#b3b3b3]">{sub.user?.email || '-'}</td>
+                      <td className="py-3 px-4 font-medium">{sub.user?.name || 'Desconhecido'}</td>
+                      <td className="py-3 px-4 text-[#b3b3b3]">{sub.user?.email || sub.user_id.slice(0, 8) + '...'}</td>
                       <td className="py-3 px-4">{sub.duration_months} {sub.duration_months === 1 ? 'mês' : 'meses'}</td>
                       <td className="py-3 px-4 text-[#1DB954]">{formatCurrency(sub.amount)}</td>
                       <td className="py-3 px-4">{formatDate(sub.created_at)}</td>
