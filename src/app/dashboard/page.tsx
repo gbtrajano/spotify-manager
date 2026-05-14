@@ -160,12 +160,22 @@ export default function DashboardPage() {
             </div>
             <h1 className="text-xl font-bold">Spotify Charge Manager</h1>
           </div>
-          <button
-            onClick={handleLogout}
-            className="text-[#b3b3b3] hover:text-white transition-colors"
-          >
-            Sair
-          </button>
+          <div className="flex items-center gap-4">
+            {user?.role === 'admin' && (
+              <button
+                onClick={() => router.push('/admin')}
+                className="text-[#1DB954] hover:text-[#1ed760] transition-colors font-medium"
+              >
+                Admin
+              </button>
+            )}
+            <button
+              onClick={handleLogout}
+              className="text-[#b3b3b3] hover:text-white transition-colors"
+            >
+              Sair
+            </button>
+          </div>
         </div>
       </header>
 

@@ -55,13 +55,29 @@ export default function AdminPage() {
     const supabase = supabaseRef.current;
     if (!supabase) return;
 
-    const { data } = await supabase
+    // Buscar订阅 e usuários separadamente para garantir que funcione
+    const { data: subsData } = await supabase
       .from('subscriptions')
-      .select('*, user:users(*)')
+      .select('*')
       .order('created_at', { ascending: false });
 
-    if (data) {
-      setSubscriptions(data);
+    if (subsData && subsData.length > 0) {
+      // Buscar todos os usuários de uma vez
+      const userIds = [...new Set(subsData.map(s => s.user_id))];
+      const { data: usersData } = await supabase
+        .from('users')
+        .select('*')
+        .in('id', userIds);
+
+      const usersMap = new Map(usersData?.map(u => [u.id, u]) || []);
+
+      // Associar usuários às assinaturas
+      const subsWithUsers = subsData.map(sub => ({
+        ...sub,
+        user: usersMap.get(sub.user_id) || null
+      }));
+
+      setSubscriptions(subsWithUsers);
     }
     setLoading(false);
   };
