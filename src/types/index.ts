@@ -9,7 +9,7 @@ export interface User {
 export interface Subscription {
   id: string;
   user_id: string;
-  duration_months: 1 | 2 | 3;
+  duration_months: 1;
   amount: number;
   status: 'pending' | 'paid' | 'overdue';
   start_date: string;
@@ -19,10 +19,8 @@ export interface Subscription {
   user?: User;
 }
 
-export type Duration = 1 | 2 | 3;
-
 export const PRICE_PER_MONTH = 6.81;
 
-export const PIX_KEY = 'conversarcomgabriel@gmail.com';
-export const PIX_MERCHANT_NAME = 'Gabriel';
-export const PIX_MERCHANT_CITY = 'Sao Paulo';
+// URL da imagem do QR Code - substitua pela sua imagem
+// Você pode colocar a imagem na pasta public e referenciar aqui
+export const QR_CODE_IMAGE_URL = '/qrcode-pix.jpg';

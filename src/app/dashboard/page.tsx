@@ -3,17 +3,15 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import type { Subscription, User } from '@/types';
-import { PRICE_PER_MONTH } from '@/types';
+import { PRICE_PER_MONTH, QR_CODE_IMAGE_URL } from '@/types';
 
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDuration, setSelectedDuration] = useState<1 | 2 | 3>(1);
   const [creating, setCreating] = useState(false);
-  const [newSubscriptionId, setNewSubscriptionId] = useState<string | null>(null);
+  const [showQRCode, setShowQRCode] = useState(false);
   const router = useRouter();
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
 
@@ -71,26 +69,22 @@ export default function DashboardPage() {
 
     const startDate = new Date();
     const endDate = new Date();
-    endDate.setMonth(endDate.getMonth() + selectedDuration);
+    endDate.setMonth(endDate.getMonth() + 1);
 
-    const { data, error } = await supabase.from('subscriptions').insert({
+    const { error } = await supabase.from('subscriptions').insert({
       user_id: user.id,
-      duration_months: selectedDuration,
-      amount: PRICE_PER_MONTH * selectedDuration,
+      duration_months: 1,
+      amount: PRICE_PER_MONTH,
       status: 'pending',
       start_date: startDate.toISOString().split('T')[0],
       end_date: endDate.toISOString().split('T')[0],
-    }).select().single();
+    });
 
-    if (!error && data) {
-      setNewSubscriptionId(data.id);
+    if (!error) {
       fetchSubscriptions(user.id);
+      setShowQRCode(true);
     }
     setCreating(false);
-  };
-
-  const goToPayment = (subscriptionId: string) => {
-    router.push(`/payment?id=${subscriptionId}`);
   };
 
   const formatDate = (date: string) => {
@@ -117,7 +111,7 @@ export default function DashboardPage() {
     }
   };
 
-  const lastSubscription = subscriptions[0];
+  const lastSubscription = subscriptions.find(s => s.status === 'pending');
 
   const handleLogout = async () => {
     const supabase = supabaseRef.current;
@@ -167,32 +161,35 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {newSubscriptionId && (
-          <div className="bg-[#1DB954]/10 border border-[#1DB954]/50 rounded-xl p-6 animate-fade-in">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-[#1DB954]">Assinatura Criada!</h3>
-                <p className="text-[#b3b3b3] mt-1">Clique abaixo para gerar o QR Code PIX</p>
+        {showQRCode && lastSubscription && (
+          <div className="bg-[#12121a] border border-[#1DB954]/50 rounded-xl p-6 animate-fade-in">
+            <h3 className="text-lg font-semibold text-[#1DB954] mb-4">QR Code para Pagamento</h3>
+            <div className="flex flex-col md:flex-row items-center gap-6">
+              <div className="bg-white p-4 rounded-xl">
+                <img src={QR_CODE_IMAGE_URL} alt="QR Code PIX" className="w-48 h-48 object-contain" />
               </div>
-              <button
-                onClick={() => goToPayment(newSubscriptionId)}
-                className="px-6 py-3 bg-[#1DB954] text-black font-semibold rounded-full hover:bg-[#1ed760] transition-all hover:scale-[1.02]"
-              >
-                Pagar PIX
-              </button>
+              <div className="flex-1 text-center md:text-left">
+                <p className="text-3xl font-bold text-[#1DB954] mb-2">{formatCurrency(PRICE_PER_MONTH)}</p>
+                <p className="text-[#b3b3b3] mb-4">Escaneie o QR Code para pagar</p>
+                <p className="text-sm text-[#b3b3b3]">
+                  Após o pagamento, aguarde a confirmação. Você será notificado quando o pagamento for confirmado.
+                </p>
+              </div>
             </div>
+            <button
+              onClick={() => setShowQRCode(false)}
+              className="mt-4 text-[#b3b3b3] hover:text-white text-sm"
+            >
+              Fechar
+            </button>
           </div>
         )}
 
         <div className="grid md:grid-cols-2 gap-6">
           <div className="bg-[#12121a] border border-[#282828] rounded-xl p-6">
-            <h3 className="text-lg font-semibold mb-4">Última Assinatura</h3>
+            <h3 className="text-lg font-semibold mb-4">Sua Assinatura</h3>
             {lastSubscription ? (
               <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-[#b3b3b3]">Duração</span>
-                  <span className="font-medium">{lastSubscription.duration_months} {lastSubscription.duration_months === 1 ? 'mês' : 'meses'}</span>
-                </div>
                 <div className="flex justify-between items-center">
                   <span className="text-[#b3b3b3]">Valor</span>
                   <span className="font-medium text-[#1DB954]">{formatCurrency(lastSubscription.amount)}</span>
@@ -209,89 +206,59 @@ export default function DashboardPage() {
                 </div>
                 {lastSubscription.status === 'pending' && (
                   <button
-                    onClick={() => goToPayment(lastSubscription.id)}
+                    onClick={() => setShowQRCode(true)}
                     className="w-full mt-4 py-2 border border-[#1DB954] text-[#1DB954] rounded-full hover:bg-[#1DB954]/10 transition-colors"
                   >
-                    Ver QR Code PIX
+                    Ver QR Code
                   </button>
                 )}
               </div>
             ) : (
-              <p className="text-[#b3b3b3]">Nenhuma assinatura encontrada</p>
+              <p className="text-[#b3b3b3]">Nenhuma assinatura ativa</p>
             )}
           </div>
 
           <div className="bg-[#12121a] border border-[#282828] rounded-xl p-6">
-            <h3 className="text-lg font-semibold mb-4">Nova Assinatura</h3>
+            <h3 className="text-lg font-semibold mb-4">Renovar Assinatura</h3>
             <div className="space-y-4">
-              <div className="flex gap-2">
-                {([1, 2, 3] as const).map((duration) => (
-                  <button
-                    key={duration}
-                    onClick={() => setSelectedDuration(duration)}
-                    className={`flex-1 py-3 rounded-lg font-medium transition-all ${
-                      selectedDuration === duration
-                        ? 'bg-[#1DB954] text-black'
-                        : 'bg-[#181818] text-[#b3b3b3] hover:bg-[#1a1a24]'
-                    }`}
-                  >
-                    {duration} {duration === 1 ? 'mês' : 'meses'}
-                  </button>
-                ))}
-              </div>
-              <div className="flex justify-between items-center py-3 border-t border-[#282828]">
-                <span className="text-[#b3b3b3]">Total a pagar</span>
-                <span className="text-2xl font-bold text-[#1DB954]">
-                  {formatCurrency(PRICE_PER_MONTH * selectedDuration)}
-                </span>
+              <div className="text-center py-4 border-b border-[#282828]">
+                <span className="text-3xl font-bold text-[#1DB954]">{formatCurrency(PRICE_PER_MONTH)}</span>
+                <span className="text-[#b3b3b3]">/mês</span>
               </div>
               <button
                 onClick={createSubscription}
-                disabled={creating}
+                disabled={creating || (lastSubscription?.status === 'pending')}
                 className="w-full py-3 bg-[#1DB954] text-black font-semibold rounded-full hover:bg-[#1ed760] transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {creating ? 'Criando...' : 'Criar Assinatura'}
+                {creating ? 'Criando...' : lastSubscription?.status === 'pending' ? 'Aguardando Pagamento' : 'Gerar Assinatura'}
               </button>
             </div>
           </div>
         </div>
 
         <div className="bg-[#12121a] border border-[#282828] rounded-xl p-6">
-          <h3 className="text-lg font-semibold mb-4">Histórico de Assinaturas</h3>
+          <h3 className="text-lg font-semibold mb-4">Histórico</h3>
           {subscriptions.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-[#282828]">
                     <th className="text-left py-3 px-4 text-[#b3b3b3] font-medium">Data</th>
-                    <th className="text-left py-3 px-4 text-[#b3b3b3] font-medium">Duração</th>
                     <th className="text-left py-3 px-4 text-[#b3b3b3] font-medium">Valor</th>
                     <th className="text-left py-3 px-4 text-[#b3b3b3] font-medium">Vencimento</th>
                     <th className="text-left py-3 px-4 text-[#b3b3b3] font-medium">Status</th>
-                    <th className="text-left py-3 px-4 text-[#b3b3b3] font-medium">Ação</th>
                   </tr>
                 </thead>
                 <tbody>
                   {subscriptions.map((sub) => (
                     <tr key={sub.id} className="border-b border-[#282828] hover:bg-[#1a1a24] transition-colors">
                       <td className="py-3 px-4">{formatDate(sub.created_at)}</td>
-                      <td className="py-3 px-4">{sub.duration_months} {sub.duration_months === 1 ? 'mês' : 'meses'}</td>
                       <td className="py-3 px-4 text-[#1DB954]">{formatCurrency(sub.amount)}</td>
                       <td className="py-3 px-4">{formatDate(sub.end_date)}</td>
                       <td className="py-3 px-4">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(sub.status)}`}>
                           {sub.status === 'paid' ? 'Pago' : sub.status === 'pending' ? 'Pendente' : 'Vencido'}
                         </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        {sub.status === 'pending' && (
-                          <button
-                            onClick={() => goToPayment(sub.id)}
-                            className="px-3 py-1 bg-[#1DB954] text-black text-xs font-medium rounded-full hover:bg-[#1ed760] transition-colors"
-                          >
-                            PIX
-                          </button>
-                        )}
                       </td>
                     </tr>
                   ))}
