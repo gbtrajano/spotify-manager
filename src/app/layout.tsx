@@ -3,7 +3,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Spotify Charge Manager',
-  description: 'Gerencie suas cobranças do Spotify Family',
+  description: 'Sistema programado por Gabriel Trajano',
 };
 
 export default function RootLayout({
